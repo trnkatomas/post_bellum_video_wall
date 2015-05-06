@@ -7,6 +7,7 @@ __author__ = 'tomas'
 import sys, os, subprocess, traceback
 import logging
 import ConfigParser
+from PyQt4.QtCore import *
 from PyQt4 import QtGui
 import platform
 
@@ -122,6 +123,7 @@ class Example(QtGui.QWidget):
         self.sound = QtGui.QComboBox()
         self.sound.addItem("stereo")
         self.sound.addItem("5.1")
+        self.sound.addItem("mute")
         formLayout.addRow("zvuk",self.sound)
 
         self.osd = QtGui.QComboBox()
@@ -180,6 +182,8 @@ class Example(QtGui.QWidget):
             args += " -osdlevel 0"
         if self.sound.currentText() == "5.1":
             args += " -channels 6"
+        elif self.sound.currentText() == "mute":
+            args += " -nosound"
         if self.master.isChecked():
             args += " -udp-master -udp-ip {}".format(self.get_broadcast_address())
         else:
@@ -188,7 +192,7 @@ class Example(QtGui.QWidget):
         logging.info(args)
         self.save_current_state()
         status = subprocess.Popen("{}".format(args), shell=True)
-        #logging.info(status)
+        logging.info(status)
 
     def get_broadcast_address(self):
         ip = str(self.ip.text()).split(".")
