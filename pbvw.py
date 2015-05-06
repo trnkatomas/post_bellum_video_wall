@@ -10,6 +10,7 @@ import ConfigParser
 from PyQt4.QtCore import *
 from PyQt4 import QtGui
 import platform
+import ctypes
 
 class Button(QtGui.QPushButton):
 
@@ -131,6 +132,9 @@ class Example(QtGui.QWidget):
         self.osd.addItem("all")
         formLayout.addRow("osd", self.osd)
 
+        self.dual = QtGui.QCheckBox()
+        formLayout.addRow("dual",self.dual)
+
         okButton = QtGui.QPushButton("OK")
         okButton.clicked.connect(self.runMplayer)
         cancelButton = QtGui.QPushButton("Close")
@@ -177,7 +181,7 @@ class Example(QtGui.QWidget):
 
 
     def runMplayer(self):
-        args = "mplayer"
+        args = "mplayer -vo gl2 -idle -fixed-vo -noborder"
         if self.osd.currentText() == "none":
             args += " -osdlevel 0"
         if self.sound.currentText() == "5.1":
@@ -188,6 +192,11 @@ class Example(QtGui.QWidget):
             args += " -udp-master -udp-ip {}".format(self.get_broadcast_address())
         else:
             args += " -udp-slave"
+        if self.dual.isChecked():
+            user32 = ctypes.windll.user32
+            user32.SetProcessDPIAware()
+            [w, h] = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
+            args += " -geometry {}x{}+0+0".format(2*w,h)
         args += " " + self.edit.text()
         logging.info(args)
         self.save_current_state()
