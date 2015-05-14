@@ -9,6 +9,7 @@ import logging
 import ConfigParser
 from PyQt4.QtCore import *
 from PyQt4 import QtGui
+from PyQt4.QtGui import QApplication,QPixmap
 import platform
 import ctypes
 
@@ -99,7 +100,7 @@ class Example(QtGui.QWidget):
 
         button = Button("Open file", self)
         button.move(190, 65)
-        button.clicked.connect(self.showDialog)
+        button.clicked.connect(self.show_dialog)
 
         self.setWindowTitle('Post Bellum VideoWall')
         self.setGeometry(300, 300, 300, 150)
@@ -132,11 +133,19 @@ class Example(QtGui.QWidget):
         self.osd.addItem("all")
         formLayout.addRow("osd", self.osd)
 
+
+        dualOptions = QtGui.QHBoxLayout()
         self.dual = QtGui.QCheckBox()
-        formLayout.addRow("dual",self.dual)
+        self.resolution = QtGui.QLineEdit()
+        self.resolution.setDisabled(True)
+        self.dual.stateChanged.connect(self.set_dual)
+
+        dualOptions.addWidget(self.dual)
+        dualOptions.addWidget(self.resolution)
+        formLayout.addRow("dual", dualOptions)
 
         okButton = QtGui.QPushButton("OK")
-        okButton.clicked.connect(self.runMplayer)
+        okButton.clicked.connect(self.run_mplayer)
         cancelButton = QtGui.QPushButton("Close")
         cancelButton.clicked.connect(sys.exit)
 
@@ -154,10 +163,14 @@ class Example(QtGui.QWidget):
         self.show()
 
         self.load_current_state()
-        if self.getIpAddr():
+        if self.get_ip_addr():
             self.ip.setText(self.getIpAddr())
+        if self.get_screen_resolution():
+            [w, h] = self.get_screen_resolution()
+            self.resolution.setText(str(w)+"x"+str(h))
 
-    def showDialog(self):
+
+    def show_dialog(self):
         fname = QtGui.QFileDialog.getOpenFileName(self, 'Open file',
                                               '/home')
         name = str(fname)
@@ -167,7 +180,10 @@ class Example(QtGui.QWidget):
     def set_master(self):
         self.ip.setEnabled(not self.ip.isEnabled())
 
-    def getIpAddr(self):
+    def set_dual(self):
+        self.resolution.setEnabled(not self.resolution.isEnabled())
+
+    def get_ip_addr(self):
         command = ""
         is_windows = any(platform.win32_ver())
         if is_windows:
@@ -180,7 +196,7 @@ class Example(QtGui.QWidget):
         return re.findall(p, status)[0] if re.findall(p, status) else []
 
 
-    def runMplayer(self):
+    def run_mplayer(self):
         args = "mplayer -vo gl2 -idle -fixed-vo -noborder"
         if self.osd.currentText() == "none":
             args += " -osdlevel 0"
@@ -193,15 +209,29 @@ class Example(QtGui.QWidget):
         else:
             args += " -udp-slave"
         if self.dual.isChecked():
-            user32 = ctypes.windll.user32
-            user32.SetProcessDPIAware()
-            [w, h] = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
+            [w, h] = self.parse_resolution()
             args += " -geometry {}x{}+0+0".format(2*w,h)
         args += " " + self.edit.text()
         logging.info(args)
         self.save_current_state()
         status = subprocess.Popen("{}".format(args), shell=True)
         logging.info(status)
+
+    def get_screen_resolution(self):
+        try:
+            user32 = ctypes.windll.user32
+            user32.SetProcessDPIAware()
+            [w, h] = [user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)]
+        except:
+            desktop = QApplication.desktop()
+            screenRect = desktop.screenGeometry(0)
+            [w, h] = [screenRect.width(), screenRect.height()]
+        return [w, h]
+
+    def parse_resolution(self):
+        size = self.resolution.text().split("x")
+        return [int(i) for i in size]
+
 
     def get_broadcast_address(self):
         ip = str(self.ip.text()).split(".")
@@ -221,6 +251,7 @@ class Example(QtGui.QWidget):
         config.set('GlobalOptions', 'ip', self.ip.text())
         config.set('GlobalOptions', 'sound', self.sound.currentIndex())
         config.set('GlobalOptions', 'osd', self.osd.currentIndex())
+        config.set('GlobalOptions', 'dual', self.dual.isChecked())
 
         with open('config.cfg', 'wb') as configfile:
             config.write(configfile)
@@ -240,6 +271,8 @@ class Example(QtGui.QWidget):
             self.sound.setCurrentIndex(sound)
             osd = config.getint('GlobalOptions', 'osd')
             self.osd.setCurrentIndex(osd)
+            dual = config.getboolean('GlobalOptions', 'dual')
+            self.dual.setChecked(dual)
         except:
             logging.info("Error loading config file")
             traceback.print_exc(file=sys.stdout)
