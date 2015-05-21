@@ -164,7 +164,7 @@ class Example(QtGui.QWidget):
 
         self.load_current_state()
         if self.get_ip_addr():
-            self.ip.setText(self.getIpAddr())
+            self.ip.setText(self.get_ip_addr())
         if self.get_screen_resolution():
             [w, h] = self.get_screen_resolution()
             self.resolution.setText(str(w)+"x"+str(h))
